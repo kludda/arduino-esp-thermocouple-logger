@@ -29,10 +29,15 @@ https://arduino-esp8266.readthedocs.io/en/latest/index.html
 #include "kludda_mqtt.h"
 
 // use hardware SPI, just pass in the CS pin
+// CLK = D5
+// DI = D6
+// DO = D7
+// CS = D8 (not used)
+
 Adafruit_MAX31856 maxthermo[] = {
-  Adafruit_MAX31856(D0), 
-  Adafruit_MAX31856(D1), 
-  Adafruit_MAX31856(D2)
+  Adafruit_MAX31856(D0),
+  Adafruit_MAX31856(D2),
+  Adafruit_MAX31856(D3)
   };
 
 
