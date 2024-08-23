@@ -34,11 +34,11 @@ p {
  padding:10px;
  margin-top:20px;
 }
-.name {
+.node {
  font-size: 18px;
  line-height: 28px;
 }
-.value {
+.property {
  font-size: 24px;
  font-weight: bold;
 }
@@ -184,7 +184,7 @@ const char temp_html[] PROGMEM = R"rawliteral(
 
  <div class="card" style="display:none" id="message"></div>
 
- <div id="log">
+ <div id="cards">
  </div>
 
 
@@ -218,30 +218,59 @@ const char temp_html[] PROGMEM = R"rawliteral(
 //    setTimeout(initWebSocket, 2000);
   }
   
-  function writecard(id, value) {
-	let e = document.getElementById(id);
-	if (e) {
+  function writecard(node) {
+	  let e = document.getElementById(node);
+  	if (e) {
 	  	clearTimeout(e.getAttribute('timerid'));
-	}
-    e.innerHTML = "<span class=\"name\">" + id + "</span><br><span class=\"value\">" + value + " &deg;C</span>";
-	e.setAttribute('timerid', setTimeout(writecard, 3000, id, "--"));
+	  }
+
+    var status = "";
+    var html = "<span class=\"node\">" + node + "</span><br>";
+
+    for (const prop in node) {
+      if (prop == "status") {
+        status = node[prop];
+      } else {
+        html += "<span class=\"property\">" + node[prop] + "<br>" + node[prop].value + " " + node[prop].unit + "</span>";
+      }
+    }
+    html += "<span class=\"status\">" + status + "</span>";
+    e.innerHTML = html;
+
+	  e.setAttribute('timerid', setTimeout(resetcard, 3000, node));
   }
+
+  function resetcard(id) {
+    const props = document.getElementById(id).getElementsByClassName("property");
+    for (let i = 0; i < props.length; i++) {
+      props[i].innerHTML = "--";
+    }
+    props = document.getElementById(id).getElementsByClassName("status");
+    for (let i = 0; i < props.length; i++) {
+      props[i].innerHTML = "Timeout.";
+    }    
+  }
+
+
   
   function onMessage(event) {
     console.log(event.data);
-    var myObj = JSON.parse(event.data);
+    var msg = JSON.parse(event.data);
 
-    if (document.getElementById(myObj.id)) {
-//		var timerid = document.getElementById(myObj.id).timerid;
-//		clearTimeout(timerid);
-//		var timeoutid = setTimeout(writecard(myObj.id, "---"), 3000);
-		writecard(myObj.id, myObj.value)
-//      document.getElementById(myObj.id).innerHTML = "<div timerid=" + timeoutid + "<p>" + myObj.id + "<br><h2>" + myObj.value + " &deg;C</p>";
-    } else {
-      document.getElementById('log').innerHTML += "<div class=\"card\" id=\"" + myObj.id + "\"></div>";
-	  writecard(myObj.id, myObj.value)
+    if (msg.hasOwnProperty('node')) {
+      for (const node in msg.node) {
+        if (document.getElementById(node)) {
+    		  writecard(node)
+        } else {
+          // create new card
+          document.getElementById('cards').innerHTML += "<div class=\"card\" id=\"" + node + "\"></div>";
+
+  	      writecard(node)
+        }
+      }
     }
   }
+
   function onLoad(event) {
     initWebSocket();
   }
