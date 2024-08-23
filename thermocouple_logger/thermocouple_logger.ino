@@ -334,7 +334,7 @@ void setup() {
   /*
   {
     "status": [
-      { "name": "wifi_status": text: "[WiFi] Connected to: laban."},
+      { "name":"wifi_status", "text":"[WiFi] Connected to: laban."},
       ...
     ]
   }
@@ -390,6 +390,27 @@ void setup() {
 
 
 
+/*
+{
+    "node": [
+        {
+            "thermocouple1": [
+                {
+                    "temperature": [
+                        {
+                            "value": "23",
+                            "unit": "°C"
+                        }
+                    ],
+                    "status": "ok"
+                }
+            ]
+        }
+    ]
+}
+*/
+
+
 void loop() {
   wifi_loop();
   mqtt_loop();
@@ -406,35 +427,65 @@ void loop() {
   for (int i = 0; i < num_sensors; i++) {
     if (maxthermo[i].conversionComplete()) {
       conversion_started[i] = false;
+      String t = "thermocouple" + i;
+      String p = "";
+      String s = "";
 
       uint8_t fault = maxthermo[i].readFault();
       if (fault) {
-        String json = "{";
-        json += F("\"messages\": [ ");
-        json += F("{\"type\":\"fail\", \"text\":\"Thermocouple");
-        json += i;
-        json += F(" fault: "); 
-        if (fault & MAX31856_FAULT_CJRANGE) json += "Cold Junction Range Fault";
-        if (fault & MAX31856_FAULT_TCRANGE) json += "Thermocouple Range Fault";
-        if (fault & MAX31856_FAULT_CJHIGH)  json += "Cold Junction High Fault";
-        if (fault & MAX31856_FAULT_CJLOW)   json += "Cold Junction Low Fault";
-        if (fault & MAX31856_FAULT_TCHIGH)  json += "Thermocouple High Fault";
-        if (fault & MAX31856_FAULT_TCLOW)   json += "Thermocouple Low Fault";
-        if (fault & MAX31856_FAULT_OVUV)    json += "Over/Under Voltage Fault";
-        if (fault & MAX31856_FAULT_OPEN)    json += "Thermocouple Open Fault";
-        json += F("\"}");
-        json += F("]");
-        ws.textAll(json);
-        json = String();
+        if (fault & MAX31856_FAULT_CJRANGE) s += "Cold Junction Range Fault";
+        if (fault & MAX31856_FAULT_TCRANGE) s += "Thermocouple Range Fault";
+        if (fault & MAX31856_FAULT_CJHIGH)  s += "Cold Junction High Fault";
+        if (fault & MAX31856_FAULT_CJLOW)   s += "Cold Junction Low Fault";
+        if (fault & MAX31856_FAULT_TCHIGH)  s += "Thermocouple High Fault";
+        if (fault & MAX31856_FAULT_TCLOW)   s += "Thermocouple Low Fault";
+        if (fault & MAX31856_FAULT_OVUV)    s += "Over/Under Voltage Fault";
+        if (fault & MAX31856_FAULT_OPEN)    s += "Thermocouple Open Fault";
+        p = "-1000";
+      } else {
+        s += "Ok";
+        p = String(maxthermo[i].readThermocoupleTemperature(), 2);
       }
 
-      String t = "thermocouple" + i;
-      String p = String(maxthermo[i].readThermocoupleTemperature(), 2);
+      String json = "";
 
-      ws.textAll("{\"id\":\"" + t + "\",\"value\":\"" + p + "\"}");
-      t += "/temperature";
-      mqtt_publish(t, p);
+      json += F("{");
+        json += F("\"node\": [");
+          json += F("{");
+            json += "\"" + t + "\": [";
+              json += F("{");
+                json += F("\"temperature\": [");
+                  json += "\"value\":\"" + p + "\"";
+                  json += F(",");
+                  json += F("\"unit\":\"°C\"");
+                json += F("]");
+
+                json += F(",");
+
+                json += F("\"cjtemperature\": [");
+                  json += "\"value\":\"" + String(maxthermo[i].readCJTemperature(), 2) + "\"";
+                  json += F(",");
+                  json += F("\"unit\":\"°C\"");
+                json += F("]");
+
+                json += F(",");
+                json += "\"status\":\"" + s + "\"";      
+              json += F("}");
+            json += F("]");
+          json += F("}");
+        json += F("]");
+      json += F("}");
+
+      ws.textAll(json);
+
+      mqtt_publish(t + "/temperature", p);
+      mqtt_publish(t + "/status", s);
       delay(10);
+
+      json = String();
+      t = String();
+      p = String();
+      s = String();
     }
   }
 
