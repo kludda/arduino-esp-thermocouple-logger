@@ -219,29 +219,37 @@ const char temp_html[] PROGMEM = R"rawliteral(
   }
   
   function writecard(node) {
-	  let e = document.getElementById(node);
+	  let e = document.getElementById(node.node);
   	if (e) {
-	  	clearTimeout(e.getAttribute('timerid'));
-	  }
+ 	  	clearTimeout(e.getAttribute('timerid'));
+	  } else {
+      return;
+    }
 
-    var status = "";
-    var html = "<span class=\"node\">" + node + "</span><br>";
+    var html = "";
 
-    for (const prop in node) {
-      if (prop == "status") {
-        status = node[prop];
-      } else {
-        html += "<span class=\"property\">" + node[prop] + "<br>" + node[prop].value + " " + node[prop].unit + "</span>";
+    if (node.hasOwnProperty('name')) {
+      html += "<p><span class=\"node\">" + node['name'] + "</span></p>";
+    }
+
+    if (node.hasOwnProperty('properties')) {
+      const properties = node['properties'];
+      for (const prop in properties) {
+          html += "<p><span class=\"property\">" + properties[prop].name + "<br>" + properties[prop].value + " " + properties[prop].unit + "</span></p>";
       }
     }
-    html += "<span class=\"status\">" + status + "</span>";
+
+    if (node.hasOwnProperty('status')) {
+      html += "<p><span class=\"status\">Status: " + node['status'] + "</span></p>";
+    }
+
     e.innerHTML = html;
 
-	  e.setAttribute('timerid', setTimeout(resetcard, 3000, node));
+	  e.setAttribute('timerid', setTimeout(resetcard, 3000, node.node));
   }
 
   function resetcard(id) {
-    const props = document.getElementById(id).getElementsByClassName("property");
+    let props = document.getElementById(id).getElementsByClassName("property");
     for (let i = 0; i < props.length; i++) {
       props[i].innerHTML = "--";
     }
@@ -254,18 +262,19 @@ const char temp_html[] PROGMEM = R"rawliteral(
 
   
   function onMessage(event) {
-    console.log(event.data);
+//    console.log(event.data);
     var msg = JSON.parse(event.data);
 
-    if (msg.hasOwnProperty('node')) {
-      for (const node in msg.node) {
-        if (document.getElementById(node)) {
-    		  writecard(node)
+    if (msg.hasOwnProperty('nodes')) {
+      const nodes = msg['nodes'];
+      for (const node in nodes) {
+        if (document.getElementById(nodes[node].node)) {
+    		  writecard(nodes[node]);
         } else {
           // create new card
-          document.getElementById('cards').innerHTML += "<div class=\"card\" id=\"" + node + "\"></div>";
+          document.getElementById('cards').innerHTML += "<div class=\"card\" id=\"" + nodes[node].node + "\"></div>";
 
-  	      writecard(node)
+  	      writecard(nodes[node]);
         }
       }
     }

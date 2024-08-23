@@ -9,14 +9,14 @@
 WiFiClient espClient;
 PubSubClient mqtt_client(espClient);
 long mqtt_last_connection_attempt = 0;
-long mqtt_connection_attempt_timeout = 5000; // ms
+long mqtt_connection_attempt_timeout = 5000;  // ms
 bool mqtt_connection_attempt_started = false;
-#define MQTT_CONNECTING 99 // extend the states with own state
+#define MQTT_CONNECTING 99  // extend the states with own state
 
 
 typedef struct _subscribe {
   const char *topic;
-  void (*callback)(String*, String*);
+  void (*callback)(String *, String *);
   struct _subscribe *next;
 } t_subscribe;
 //typedef t_subscribe t_subscribe_arr[];
@@ -41,7 +41,7 @@ t_subscribe *mqtt_subscribe_list = NULL;
 String get_mqtt_status_str() {
   int status = (mqtt_connection_attempt_started) ? MQTT_CONNECTING : mqtt_client.state();
   String s = "";
-  switch(status) {
+  switch (status) {
     case MQTT_CONNECTION_TIMEOUT:
       s = "Connection timeout.";
       break;
@@ -62,7 +62,7 @@ String get_mqtt_status_str() {
       break;
     case MQTT_CONNECT_BAD_CLIENT_ID:
       s = " Client id rejected.";
-      break;    
+      break;
     case MQTT_CONNECT_UNAVAILABLE:
       s = " Connection not accepted.";
       break;
@@ -98,19 +98,19 @@ String mqtt_trim(String t) {
   pos = t.lastIndexOf("/", pos - 1);
   if (t.endsWith("/set")) pos = t.lastIndexOf("/", pos - 1);
   if (pos != -1) {
-    t = t.substring(pos + 1); // +1 to remove first /
+    t = t.substring(pos + 1);  // +1 to remove first /
   }
-  return t;  
+  return t;
 }
 
 
 
-void mqtt_on_message(char* topic, byte* payload, unsigned int length) {
+void mqtt_on_message(char *topic, byte *payload, unsigned int length) {
 
   String p = "";
   String t = String(topic);
 
-  for(int i = 0; i < length; i++) {
+  for (int i = 0; i < length; i++) {
     p += (char)payload[i];
   }
 
@@ -121,7 +121,7 @@ void mqtt_on_message(char* topic, byte* payload, unsigned int length) {
   t_subscribe *node = mqtt_subscribe_list;
   while (node) {
     if (t == node->topic) {
-      node->callback(&t,&p);
+      node->callback(&t, &p);
       break;
     }
 
@@ -144,9 +144,9 @@ void mqtt_on_message(char* topic, byte* payload, unsigned int length) {
 
 
 
-void mqtt_subscribe(const char* t,  void (*callback)(String*, String*)) {
+void mqtt_subscribe(const char *t, void (*callback)(String *, String *)) {
   t_subscribe *node = NULL;
-  node = (t_subscribe*) malloc(sizeof(t_subscribe));
+  node = (t_subscribe *)malloc(sizeof(t_subscribe));
   node->topic = t;
   node->callback = callback;
   node->next = NULL;
@@ -190,15 +190,15 @@ void mqtt_subscribe_do() {
 //void setup_mqtt(t_subscribe *subs) {
 void setup_mqtt() {
   // add mac adress to client id
-//0  sprintf(mqtt_unique_client_id, "%s-%s", mqtt_client_id, deviceId);
-//  if(atoi(get_conf("mqtt_enabled").data)) {
-//    mqtt_client.setServer(get_conf("mqtt_broker_host").data, atoi(get_conf("mqtt_broker_port").data));
-//    mqtt_client.setCallback(mqtt_on_message);
-//  }
- // Serial.print("setup_mqtt subs len: ");
+  //0  sprintf(mqtt_unique_client_id, "%s-%s", mqtt_client_id, deviceId);
+  //  if(atoi(get_conf("mqtt_enabled").data)) {
+  //    mqtt_client.setServer(get_conf("mqtt_broker_host").data, atoi(get_conf("mqtt_broker_port").data));
+  //    mqtt_client.setCallback(mqtt_on_message);
+  //  }
+  // Serial.print("setup_mqtt subs len: ");
   //Serial.println(sizeof(subs) / sizeof(t_subscribe));
 
-//  mqtt_subscribe_to = subs;
+  //  mqtt_subscribe_to = subs;
 
 
   mqtt_client.setCallback(mqtt_on_message);
@@ -213,12 +213,11 @@ void mqtt_loop() {
     mqtt_client.disconnect();
   }
 
-  if(
-    !mqtt_connection_attempt_started &&
-    WiFi.status() == WL_CONNECTED &&  // need sta wifi 
-    !mqtt_client.connected() &&          // check we're not already connected
-    atoi(get_conf("mqtt_enabled")->data)   // check if wifi is enabled in conf
-  ){
+  if (
+    !mqtt_connection_attempt_started && WiFi.status() == WL_CONNECTED &&  // need sta wifi
+    !mqtt_client.connected() &&                                           // check we're not already connected
+    atoi(get_conf("mqtt_enabled")->data)                                  // check if wifi is enabled in conf
+  ) {
     Serial.print("mqtt connecting...");
     mqtt_client.setServer(get_conf("mqtt_broker_host")->data, atoi(get_conf("mqtt_broker_port")->data));
     mqtt_client.connect(unique_id_str);
@@ -227,11 +226,11 @@ void mqtt_loop() {
   }
 
   if (mqtt_connection_attempt_started) {
-      if (mqtt_client.connected()) {
-        Serial.println(" mqtt connected");
-        mqtt_subscribe_do();
-        mqtt_connection_attempt_started = false;
-/*
+    if (mqtt_client.connected()) {
+      Serial.println(" mqtt connected");
+      mqtt_subscribe_do();
+      mqtt_connection_attempt_started = false;
+      /*
         String t = String(get_conf("mqtt_root")->data) + "/" + String(unique_id_str) + "/fan/dutycycle/set";
         
         Serial.print(F("Subscribing to:"));
@@ -240,14 +239,14 @@ void mqtt_loop() {
         mqtt_client.subscribe(t.c_str());
         t = String();
 */
-        // Once connected, publish an announcement...
-        mqtt_publish("ip", WiFi.localIP().toString());
-        // ... and resubscribe
-        //  mqtt_client.subscribe("inTopic");
-      }
-      if (millis() > mqtt_last_connection_attempt + mqtt_connection_attempt_timeout) {
-        mqtt_connection_attempt_started = false;
-      }
+      // Once connected, publish an announcement...
+      mqtt_publish("ip", WiFi.localIP().toString());
+      // ... and resubscribe
+      //  mqtt_client.subscribe("inTopic");
+    }
+    if (millis() > mqtt_last_connection_attempt + mqtt_connection_attempt_timeout) {
+      mqtt_connection_attempt_started = false;
+    }
   }
   mqtt_client.loop();
 }

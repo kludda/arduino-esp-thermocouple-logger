@@ -38,11 +38,11 @@ Adafruit_MAX31856 maxthermo[] = {
   Adafruit_MAX31856(D0),
   Adafruit_MAX31856(D2),
   Adafruit_MAX31856(D3)
-  };
+};
 
 
 int num_sensors = 3;
-bool conversion_started[3] = {false, false, false};
+bool conversion_started[3] = { false, false, false };
 
 
 
@@ -383,13 +383,14 @@ void setup() {
       Serial.println(i);
     }
   }
-  
+
   for (int i = 0; i < num_sensors; i++) {
     maxthermo[i].setThermocoupleType(MAX31856_TCTYPE_K);
   }
 
   for (int i = 0; i < num_sensors; i++) {
-    maxthermo[i].setConversionMode(MAX31856_ONESHOT_NOWAIT);
+    //maxthermo[i].setConversionMode(MAX31856_ONESHOT_NOWAIT);
+    maxthermo[i].setConversionMode(MAX31856_CONTINUOUS);
   }
 }
 
@@ -397,22 +398,45 @@ void setup() {
 
 /*
 {
-    "node": [
+    "nodes": [
         {
-            "thermocouple1": [
+            "node": "thermocouple1",
+            "name": "Thermocouple 1",
+            "properties": [
                 {
-                    "temperature": [
-                        {
-                            "value": "23",
-                            "unit": "°C"
-                        }
-                    ],
-                    "status": "ok"
+                    "property": "temperature",
+                    "name": "Temperature",
+                    "value": 30,
+                    "unit": "C"
+                },
+                {
+                    "property": "cjtemperature",
+                    "name": "Temperature",
+                    "value": 30,
+                    "unit": "C"
+                }
+            ]
+        },
+        {
+            "node": "thermocouple1",
+            "name": "Thermocouple 1",
+            "properties": [
+                {
+                    "property": "temperature",
+                    "name": "Temperature",
+                    "value": 30,
+                    "unit": "C"
+                },
+                {
+                    "property": "cjtemperature",
+                    "name": "Temperature",
+                    "value": 30,
+                    "unit": "C"
                 }
             ]
         }
     ]
-}
+}  
 */
 
 
@@ -420,85 +444,108 @@ void loop() {
   wifi_loop();
   mqtt_loop();
 
+  String t;
+  String p;
+  String s;
+  String json = "";
+  uint8_t fault;
 
-  for (int i = 0; i < num_sensors; i++) {
-    if(!conversion_started[i]) {
-      maxthermo[i].triggerOneShot();
-      conversion_started[i] = true;
-    }
-  }
+  if (lastsendtime + 1000 < millis()) {
 
+    json += F("{\"nodes\":[");
 
-  for (int i = 0; i < num_sensors; i++) {
-    if (maxthermo[i].conversionComplete()) {
-      conversion_started[i] = false;
-      String t = "thermocouple" + i;
-      String p = "";
-      String s = "";
+    for (int i = 0; i < num_sensors; i++) {
+//    if (maxthermo[i].conversionComplete()) {
+//      conversion_started[i] = false;
+      t = "thermocouple" + String(i);
+      p = "";
+      s = "";
 
-      uint8_t fault = maxthermo[i].readFault();
+      fault = maxthermo[i].readFault();
       if (fault) {
         if (fault & MAX31856_FAULT_CJRANGE) s += "Cold Junction Range Fault";
         if (fault & MAX31856_FAULT_TCRANGE) s += "Thermocouple Range Fault";
-        if (fault & MAX31856_FAULT_CJHIGH)  s += "Cold Junction High Fault";
-        if (fault & MAX31856_FAULT_CJLOW)   s += "Cold Junction Low Fault";
-        if (fault & MAX31856_FAULT_TCHIGH)  s += "Thermocouple High Fault";
-        if (fault & MAX31856_FAULT_TCLOW)   s += "Thermocouple Low Fault";
-        if (fault & MAX31856_FAULT_OVUV)    s += "Over/Under Voltage Fault";
-        if (fault & MAX31856_FAULT_OPEN)    s += "Thermocouple Open Fault";
+        if (fault & MAX31856_FAULT_CJHIGH) s += "Cold Junction High Fault";
+        if (fault & MAX31856_FAULT_CJLOW) s += "Cold Junction Low Fault";
+        if (fault & MAX31856_FAULT_TCHIGH) s += "Thermocouple High Fault";
+        if (fault & MAX31856_FAULT_TCLOW) s += "Thermocouple Low Fault";
+        if (fault & MAX31856_FAULT_OVUV) s += "Over/Under Voltage Fault";
+        if (fault & MAX31856_FAULT_OPEN) s += "Thermocouple Open Fault";
         p = "-1000";
       } else {
         s += "Ok";
         p = String(maxthermo[i].readThermocoupleTemperature(), 2);
       }
 
-      String json = "";
 
       json += F("{");
-        json += F("\"node\": [");
-          json += F("{");
-            json += "\"" + t + "\": [";
-              json += F("{");
-                json += F("\"temperature\": [");
-                  json += "\"value\":\"" + p + "\"";
-                  json += F(",");
-                  json += F("\"unit\":\"°C\"");
-                json += F("]");
+      json += "\"node\":\"thermocouple" + String(i) + "\"";
+      json += F(",");
+      json += "\"name\":\"Thermocouple " + String(i) + "\"";
+      json += F(",");
 
-                json += F(",");
+      json += F("\"properties\":[");
 
-                json += F("\"cjtemperature\": [");
-                  json += "\"value\":\"" + String(maxthermo[i].readCJTemperature(), 2) + "\"";
-                  json += F(",");
-                  json += F("\"unit\":\"°C\"");
-                json += F("]");
-
-                json += F(",");
-                json += "\"status\":\"" + s + "\"";      
-              json += F("}");
-            json += F("]");
-          json += F("}");
-        json += F("]");
+      json += F("{");
+      json += "\"property\":\"temperature\"";
+      json += F(",");
+      json += "\"name\":\"Temperature\"";
+      json += F(",");
+      json += "\"value\":\"" + p + "\"";
+      json += F(",");
+      json += "\"unit\":\"°C\"";
       json += F("}");
 
-      ws.textAll(json);
+      json += F(",");
+
+      json += F("{");
+      json += "\"property\":\"cjtemperature\"";
+      json += F(",");
+      json += "\"name\":\"Cold junction temperature\"";
+      json += F(",");
+      json += "\"value\":\"" + String(maxthermo[i].readCJTemperature(), 2) + "\"";
+      json += F(",");
+      json += "\"unit\":\"°C\"";
+      json += F("}");
+
+
+      json += F("]");
+
+      json += F(",");
+      json += "\"status\":\"" + s + "\"";
+
+      json += F("}");
+
+      if (i+1 < num_sensors) {
+        json += F(",");
+      }
+
 
       mqtt_publish(t + "/temperature", p);
-      mqtt_publish(t + "/status", s);
-      delay(10);
+ //     mqtt_publish(t + "/status", s);
 
-      json = String();
-      t = String();
-      p = String();
-      s = String();
+//    } else if (!conversion_started[i]) {
+//      maxthermo[i].triggerOneShot();
+//      conversion_started[i] = true;
     }
-  }
+
+    json += F("]}");
+
+    ws.textAll(json);
 
 
-  if (lastsendtime + 1000 < millis()) {
+
     mqtt_publish("mcu/freeheap", String(ESP.getFreeHeap()));
-//    ws.textAll("{\"freemem\":" + String(ESP.getFreeHeap())  + "}");
+      //    ws.textAll("{\"freemem\":" + String(ESP.getFreeHeap())  + "}");
     lastsendtime = millis();
+  
   }
 
+
+
+
+  json = String();
+  t = String();
+  p = String();
+  s = String();
 }
